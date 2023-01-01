@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import * as  github from '@actions/github'
-import { last } from 'lodash-es'
+import { last, isString } from 'lodash-es'
 import JiraApi from 'jira-client'
 
 enum IssueKeyLocation {
@@ -73,11 +73,35 @@ async function main() {
     const issuePriority = jiraIssueDetails.fields.priority?.name
     const issueFixVersion = jiraIssueDetails.fields.fixVersions[0]?.name
 
+    const issueTypeLabelNew = `Issue Type: ${issueType}`
+
     const octokit = github.getOctokit(githubToken)
-    octokit.rest.issues.addLabels({
+    const githubRestClient = octokit.rest
+
+    const issueDetails = await githubRestClient.issues.get({
       ...context.repo,
       issue_number: prIssueNumber,
-      labels: [`issue type: ${issueType}`, `fix version: ${issueFixVersion}`]
+    })
+
+    console.log(JSON.stringify(issueDetails.data.labels, null, 2))
+    // find any existing "issue type" labels so we can remove them
+    // issueDetails.data.labels = issueDetails.data.labels || []
+    // issueDetails.data.labels = issueDetails.data.labels.filter(label => !isString(label))
+    // const issueTypeLabelExisting = issueDetails.data.labels.find(label => label?.name.startsWith('Issue Type'))
+
+    // if (issueTypeLabelExisting) {
+    //   if (issueTypeLabelExisting?.name !== issueTypeLabelNew)
+    //   await githubRestClient.issues.removeLabel({
+    //     ...context.repo,
+    //     issue_number: prIssueNumber,
+    //     name: issueTypeLabelExisting?.name
+    //   })
+    // }
+
+    await githubRestClient.issues.addLabels({
+      ...context.repo,
+      issue_number: prIssueNumber,
+      labels: [issueTypeLabelNew]
     })
 
     core.setOutput('issue-key', jiraIssueKey)
