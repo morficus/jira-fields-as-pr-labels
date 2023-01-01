@@ -1,6 +1,6 @@
 name: 'GitHub Label + Jira'
 author: 'Maurice Williams'
-description: 'Apply's a label in GitHub to match the Jira issue type'
+description: "Apply's a label in GitHub to match the Jira issue type"
 inputs:
   github-token:
     description: 'Token used to update PR description and add labels. Can be passed in using {{ secrets.GITHUB_TOKEN }}'
