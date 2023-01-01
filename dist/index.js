@@ -110,19 +110,14 @@ function main() {
             const octokit = github.getOctokit(githubToken);
             const githubRestClient = octokit.rest;
             const issueDetails = yield githubRestClient.issues.get(Object.assign(Object.assign({}, context.repo), { issue_number: prIssueNumber }));
-            console.log(JSON.stringify(issueDetails.data.labels, null, 2));
             // find any existing "issue type" labels so we can remove them
-            // issueDetails.data.labels = issueDetails.data.labels || []
-            // issueDetails.data.labels = issueDetails.data.labels.filter(label => !isString(label))
-            // const issueTypeLabelExisting = issueDetails.data.labels.find(label => label?.name.startsWith('Issue Type'))
-            // if (issueTypeLabelExisting) {
-            //   if (issueTypeLabelExisting?.name !== issueTypeLabelNew)
-            //   await githubRestClient.issues.removeLabel({
-            //     ...context.repo,
-            //     issue_number: prIssueNumber,
-            //     name: issueTypeLabelExisting?.name
-            //   })
-            // }
+            issueDetails.data.labels = issueDetails.data.labels || [];
+            const existingLabels = issueDetails.data.labels;
+            const issueTypeLabelExisting = existingLabels.find(label => { var _a; return (_a = label.name) === null || _a === void 0 ? void 0 : _a.startsWith('Issue Type:'); });
+            if (issueTypeLabelExisting && issueTypeLabelExisting.name) {
+                if (issueTypeLabelExisting.name !== issueTypeLabelNew)
+                    yield githubRestClient.issues.removeLabel(Object.assign(Object.assign({}, context.repo), { issue_number: prIssueNumber, name: issueTypeLabelExisting === null || issueTypeLabelExisting === void 0 ? void 0 : issueTypeLabelExisting.name }));
+            }
             yield githubRestClient.issues.addLabels(Object.assign(Object.assign({}, context.repo), { issue_number: prIssueNumber, labels: [issueTypeLabelNew] }));
             core.setOutput('issue-key', jiraIssueKey);
             core.setOutput('issue-type', issueType);

@@ -83,20 +83,32 @@ async function main() {
       issue_number: prIssueNumber,
     })
 
-    console.log(JSON.stringify(issueDetails.data.labels, null, 2))
     // find any existing "issue type" labels so we can remove them
-    // issueDetails.data.labels = issueDetails.data.labels || []
-    // issueDetails.data.labels = issueDetails.data.labels.filter(label => !isString(label))
-    // const issueTypeLabelExisting = issueDetails.data.labels.find(label => label?.name.startsWith('Issue Type'))
+    issueDetails.data.labels = issueDetails.data.labels || []
+    
+    // for some reason, the Octokit REST client defines "labels" as either an array of strings OR objects.
+    // doing doing `labels[0]?.name` always resulted in a TS error... so to get around that, I'm redefining the type 🤷🏽‍♂️
+    type ghLabel = {
+      id?: number | undefined;
+      node_id?: string | undefined;
+      url?: string | undefined;
+      name?: string | undefined;
+      description?: string | null | undefined;
+      color?: string | null | undefined;
+      default?: boolean | undefined;
+    }
+    
+    const existingLabels = issueDetails.data.labels as ghLabel[]
+    const issueTypeLabelExisting = existingLabels.find(label => label.name?.startsWith('Issue Type:'))
 
-    // if (issueTypeLabelExisting) {
-    //   if (issueTypeLabelExisting?.name !== issueTypeLabelNew)
-    //   await githubRestClient.issues.removeLabel({
-    //     ...context.repo,
-    //     issue_number: prIssueNumber,
-    //     name: issueTypeLabelExisting?.name
-    //   })
-    // }
+    if (issueTypeLabelExisting && issueTypeLabelExisting.name) {
+      if (issueTypeLabelExisting.name !== issueTypeLabelNew)
+      await githubRestClient.issues.removeLabel({
+        ...context.repo,
+        issue_number: prIssueNumber,
+        name: issueTypeLabelExisting?.name
+      })
+    }
 
     await githubRestClient.issues.addLabels({
       ...context.repo,
