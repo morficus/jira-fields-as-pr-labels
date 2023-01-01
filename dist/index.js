@@ -105,9 +105,9 @@ function main() {
             const jiraIssueDetails = yield jira.findIssue(jiraIssueKey, 'names', 'project,summary,issuetype,priority,fixVersions');
             const issueType = (_c = jiraIssueDetails.fields.issuetype) === null || _c === void 0 ? void 0 : _c.name;
             const issuePriority = (_d = jiraIssueDetails.fields.priority) === null || _d === void 0 ? void 0 : _d.name;
-            const issueFixVersion = (_e = jiraIssueDetails.fields.fixVersions) === null || _e === void 0 ? void 0 : _e.name;
+            const issueFixVersion = (_e = jiraIssueDetails.fields.fixVersions[0]) === null || _e === void 0 ? void 0 : _e.name;
             const octokit = github.getOctokit(githubToken);
-            octokit.rest.issues.addLabels(Object.assign(Object.assign({}, context.repo), { issue_number: prIssueNumber, labels: [`issue type: ${issueType}`, 'test 01'] }));
+            octokit.rest.issues.addLabels(Object.assign(Object.assign({}, context.repo), { issue_number: prIssueNumber, labels: [`issue type: ${issueType}`, `fix version: ${issueFixVersion}`] }));
             core.setOutput('issue-key', jiraIssueKey);
             core.setOutput('issue-type', issueType);
             core.setOutput('issue-priority', issuePriority);

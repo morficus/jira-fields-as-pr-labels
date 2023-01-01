@@ -71,13 +71,13 @@ async function main() {
     
     const issueType = jiraIssueDetails.fields.issuetype?.name
     const issuePriority = jiraIssueDetails.fields.priority?.name
-    const issueFixVersion = jiraIssueDetails.fields.fixVersions?.name
+    const issueFixVersion = jiraIssueDetails.fields.fixVersions[0]?.name
 
     const octokit = github.getOctokit(githubToken)
     octokit.rest.issues.addLabels({
       ...context.repo,
       issue_number: prIssueNumber,
-      labels: [`issue type: ${issueType}`, 'test 01']
+      labels: [`issue type: ${issueType}`, `fix version: ${issueFixVersion}`]
     })
 
     core.setOutput('issue-key', jiraIssueKey)
