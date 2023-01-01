@@ -68,23 +68,16 @@ async function main() {
     // fetch issue details with only the specified fields
     // the 2nd parameter (`names`) returns a property that has the "display name" of each property
     const jiraIssueDetails = await jira.findIssue(jiraIssueKey, 'names', 'project,summary,issuetype,priority,fixVersions')
-    console.log(jiraIssueDetails)
-    const issueType = jiraIssueDetails.issuetype?.name
-    const issuePriority = jiraIssueDetails.priority?.name
-    const issueFixVersion = jiraIssueDetails.fixVersions?.name
+    
+    const issueType = jiraIssueDetails.fields.issuetype?.name
+    const issuePriority = jiraIssueDetails.fields.priority?.name
+    const issueFixVersion = jiraIssueDetails.fields.fixVersions?.name
 
     const octokit = github.getOctokit(githubToken)
     octokit.rest.issues.addLabels({
       ...context.repo,
       issue_number: prIssueNumber,
-      labels: [
-        {
-          name: 'test 01'
-        },
-        {
-          name: `issue type: ${issueType}`
-        }
-      ]
+      labels: [`issue type: ${issueType}`, 'test 01']
     })
 
     core.setOutput('issue-key', jiraIssueKey)

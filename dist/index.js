@@ -103,19 +103,11 @@ function main() {
             // fetch issue details with only the specified fields
             // the 2nd parameter (`names`) returns a property that has the "display name" of each property
             const jiraIssueDetails = yield jira.findIssue(jiraIssueKey, 'names', 'project,summary,issuetype,priority,fixVersions');
-            console.log(jiraIssueDetails);
-            const issueType = (_c = jiraIssueDetails.issuetype) === null || _c === void 0 ? void 0 : _c.name;
-            const issuePriority = (_d = jiraIssueDetails.priority) === null || _d === void 0 ? void 0 : _d.name;
-            const issueFixVersion = (_e = jiraIssueDetails.fixVersions) === null || _e === void 0 ? void 0 : _e.name;
+            const issueType = (_c = jiraIssueDetails.fields.issuetype) === null || _c === void 0 ? void 0 : _c.name;
+            const issuePriority = (_d = jiraIssueDetails.fields.priority) === null || _d === void 0 ? void 0 : _d.name;
+            const issueFixVersion = (_e = jiraIssueDetails.fields.fixVersions) === null || _e === void 0 ? void 0 : _e.name;
             const octokit = github.getOctokit(githubToken);
-            octokit.rest.issues.addLabels(Object.assign(Object.assign({}, context.repo), { issue_number: prIssueNumber, labels: [
-                    {
-                        name: 'test 01'
-                    },
-                    {
-                        name: `issue type: ${issueType}`
-                    }
-                ] }));
+            octokit.rest.issues.addLabels(Object.assign(Object.assign({}, context.repo), { issue_number: prIssueNumber, labels: [`issue type: ${issueType}`, 'test 01'] }));
             core.setOutput('issue-key', jiraIssueKey);
             core.setOutput('issue-type', issueType);
             core.setOutput('issue-priority', issuePriority);
