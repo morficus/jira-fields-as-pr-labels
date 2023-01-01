@@ -2,10 +2,11 @@
   "name": "gh-action-jira",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc"
+    "build": "tsc",
+    "build2": "ncc build --source-map --license licenses.txt"
   },
   "keywords": [],
   "author": "",
