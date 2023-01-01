@@ -114,11 +114,14 @@ function main() {
             issueDetails.data.labels = issueDetails.data.labels || [];
             const existingLabels = issueDetails.data.labels;
             const issueTypeLabelExisting = existingLabels.find(label => { var _a; return (_a = label.name) === null || _a === void 0 ? void 0 : _a.startsWith('Issue Type:'); });
-            if (issueTypeLabelExisting && issueTypeLabelExisting.name) {
-                if (issueTypeLabelExisting.name !== issueTypeLabelNew)
-                    yield githubRestClient.issues.removeLabel(Object.assign(Object.assign({}, context.repo), { issue_number: prIssueNumber, name: issueTypeLabelExisting === null || issueTypeLabelExisting === void 0 ? void 0 : issueTypeLabelExisting.name }));
+            const hasExistingLabel = !!(issueTypeLabelExisting && issueTypeLabelExisting.name);
+            const existingLabelMatches = (issueTypeLabelExisting === null || issueTypeLabelExisting === void 0 ? void 0 : issueTypeLabelExisting.name) === issueTypeLabelNew;
+            if (hasExistingLabel && !existingLabelMatches) {
+                yield githubRestClient.issues.removeLabel(Object.assign(Object.assign({}, context.repo), { issue_number: prIssueNumber, name: issueTypeLabelExisting.name || '' }));
             }
-            yield githubRestClient.issues.addLabels(Object.assign(Object.assign({}, context.repo), { issue_number: prIssueNumber, labels: [issueTypeLabelNew] }));
+            if (!hasExistingLabel || !existingLabelMatches) {
+                yield githubRestClient.issues.addLabels(Object.assign(Object.assign({}, context.repo), { issue_number: prIssueNumber, labels: [issueTypeLabelNew] }));
+            }
             core.setOutput('issue-key', jiraIssueKey);
             core.setOutput('issue-type', issueType);
             core.setOutput('issue-priority', issuePriority);

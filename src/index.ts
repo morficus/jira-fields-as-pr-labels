@@ -101,20 +101,24 @@ async function main() {
     const existingLabels = issueDetails.data.labels as ghLabel[]
     const issueTypeLabelExisting = existingLabels.find(label => label.name?.startsWith('Issue Type:'))
 
-    if (issueTypeLabelExisting && issueTypeLabelExisting.name) {
-      if (issueTypeLabelExisting.name !== issueTypeLabelNew)
+    const hasExistingLabel = !!(issueTypeLabelExisting && issueTypeLabelExisting.name)
+    const existingLabelMatches = issueTypeLabelExisting?.name === issueTypeLabelNew
+
+    if (hasExistingLabel && !existingLabelMatches) {
       await githubRestClient.issues.removeLabel({
         ...context.repo,
         issue_number: prIssueNumber,
-        name: issueTypeLabelExisting?.name
+        name: issueTypeLabelExisting.name || ''
       })
     }
 
-    await githubRestClient.issues.addLabels({
-      ...context.repo,
-      issue_number: prIssueNumber,
-      labels: [issueTypeLabelNew]
-    })
+    if (!hasExistingLabel || !existingLabelMatches) {
+      await githubRestClient.issues.addLabels({
+        ...context.repo,
+        issue_number: prIssueNumber,
+        labels: [issueTypeLabelNew]
+      })
+    }
 
     core.setOutput('issue-key', jiraIssueKey)
     core.setOutput('issue-type', issueType)
