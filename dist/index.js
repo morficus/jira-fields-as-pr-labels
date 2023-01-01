@@ -84,14 +84,16 @@ function main() {
             let jiraIssueKey;
             const matcher = new RegExp(JIRA_ISSUE_KEY_REGEX_MATCHER);
             if (issueKeyLocation === IssueKeyLocation.BRANCH_NAME) {
-                jiraIssueKey = matcher.exec(title);
+                jiraIssueKey = matcher.exec(branchName);
             }
             else if (issueKeyLocation === IssueKeyLocation.TITLE) {
-                jiraIssueKey = matcher.exec(branchName);
+                jiraIssueKey = matcher.exec(title);
             }
             else if (issueKeyLocation === IssueKeyLocation.BOTH) {
                 jiraIssueKey = matcher.exec(title) || matcher.exec(branchName);
             }
+            console.log(`PR title: ${title}`);
+            console.log(`issue key: ${jiraIssueKey}`);
             jiraIssueKey = (0, lodash_es_1.last)(jiraIssueKey);
             if (!jiraIssueKey) {
                 const msg = `No Jira issue key was found in: ${issueKeyLocation}`;
