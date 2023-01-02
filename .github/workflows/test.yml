@@ -5,7 +5,7 @@ on:
     types: [opened, edited, synchronize]
 
 jobs:
-  hello_world_job:
+  do_the_thing:
     runs-on: ubuntu-latest
     name: Do the thing
     steps:
@@ -14,22 +14,22 @@ jobs:
 
       - name: Set PR label
         uses: ./
-        id: myAction
+        id: addPrLabels
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
           jira-username: ${{ secrets.JIRA_USERNAME }}
           jira-base-url: ${{ secrets.JIRA_BASE_URL }}
 
-      - name: Get the output issue key
-        run: echo "${{ steps.myAction.outputs.issue-key }}"
+      - name: Print the output issue key
+        run: echo "${{ steps.addPrLabels.outputs.issue-key }}"
 
-      - name: Get the output issue type
-        run: echo "${{ steps.myAction.outputs.issue-type }}"
+      - name: Print the output issue type
+        run: echo "${{ steps.addPrLabels.outputs.issue-type }}"
 
-      - name: Get the output issue priority
-        run: echo "${{ steps.myAction.outputs.issue-priority }}"
+      - name: Print the output issue priority
+        run: echo "${{ steps.addPrLabels.outputs.issue-priority }}"
 
-      - name: Get the output issue fix version
-        run: echo "${{ steps.myAction.outputs.issue-fix-version }}"
+      - name: Print the output issue fix version
+        run: echo "${{ steps.addPrLabels.outputs.issue-fix-version }}"
         

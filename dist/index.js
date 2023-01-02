@@ -75,8 +75,11 @@ function main() {
             });
             const title = (_a = context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.title;
             const branchName = context.ref;
-            const prIssueNumber = (_b = context.payload.pull_request) === null || _b === void 0 ? void 0 : _b.number;
-            if (!prIssueNumber) {
+            const prNumber = (_b = context.payload.pull_request) === null || _b === void 0 ? void 0 : _b.number;
+            core.debug(`PR title: ${title}`);
+            core.debug(`Branch name: ${branchName}`);
+            core.debug(`PR number: ${prNumber}`);
+            if (!prNumber) {
                 const msg = `No PR number was found in the GitHub context`;
                 core.setFailed(msg);
                 throw new Error(msg);
@@ -92,9 +95,8 @@ function main() {
             else if (issueKeyLocation === IssueKeyLocation.BOTH) {
                 jiraIssueKey = matcher.exec(title) || matcher.exec(branchName);
             }
-            console.log(`PR title: ${title}`);
-            console.log(`issue key: ${jiraIssueKey}`);
             jiraIssueKey = (0, lodash_es_1.last)(jiraIssueKey);
+            core.debug(`Jira issue key: ${jiraIssueKey}`);
             if (!jiraIssueKey) {
                 const msg = `No Jira issue key was found in: ${issueKeyLocation}`;
                 core.setFailed(msg);
@@ -102,38 +104,36 @@ function main() {
             }
             // fetch issue details with only the specified fields
             // the 2nd parameter (`names`) returns a property that has the "display name" of each property
-            const jiraIssueDetails = yield jira.findIssue(jiraIssueKey, 'names', 'project,summary,issuetype,priority,fixVersions');
+            const jiraIssueDetails = yield jira.findIssue(jiraIssueKey, 'names', 'issuetype,priority,fixVersions');
             const issueType = (_c = jiraIssueDetails.fields.issuetype) === null || _c === void 0 ? void 0 : _c.name;
             const issuePriority = (_d = jiraIssueDetails.fields.priority) === null || _d === void 0 ? void 0 : _d.name;
             const issueFixVersion = (_e = jiraIssueDetails.fields.fixVersions[0]) === null || _e === void 0 ? void 0 : _e.name;
             const issueTypeLabelNew = `Issue Type: ${issueType}`;
+            core.debug(`From Jira, issue type: ${issueType}`);
+            core.debug(`From Jira, priority: ${issuePriority}`);
+            core.debug(`From Jira, fix version: ${issueFixVersion}`);
             const octokit = github.getOctokit(githubToken);
             const githubRestClient = octokit.rest;
-            const issueDetails = yield githubRestClient.issues.get(Object.assign(Object.assign({}, context.repo), { issue_number: prIssueNumber }));
+            const issueDetails = yield githubRestClient.issues.get(Object.assign(Object.assign({}, context.repo), { issue_number: prNumber }));
             // find any existing "issue type" labels so we can remove them
             issueDetails.data.labels = issueDetails.data.labels || [];
             const existingLabels = issueDetails.data.labels;
             const issueTypeLabelExisting = existingLabels.find(label => { var _a; return (_a = label.name) === null || _a === void 0 ? void 0 : _a.startsWith('Issue Type:'); });
+            core.debug(`Existing labels on PR: ${existingLabels}`);
             const hasExistingLabel = !!(issueTypeLabelExisting && issueTypeLabelExisting.name);
             const existingLabelMatches = (issueTypeLabelExisting === null || issueTypeLabelExisting === void 0 ? void 0 : issueTypeLabelExisting.name) === issueTypeLabelNew;
+            core.debug(`Is there already an "issue type" label present? ${hasExistingLabel}`);
+            core.debug(`Does the existing "issue type" label match the issue type in Jira ? ${existingLabelMatches}`);
             if (hasExistingLabel && !existingLabelMatches) {
-                yield githubRestClient.issues.removeLabel(Object.assign(Object.assign({}, context.repo), { issue_number: prIssueNumber, name: issueTypeLabelExisting.name || '' }));
+                yield githubRestClient.issues.removeLabel(Object.assign(Object.assign({}, context.repo), { issue_number: prNumber, name: issueTypeLabelExisting.name || '' }));
             }
             if (!hasExistingLabel || !existingLabelMatches) {
-                yield githubRestClient.issues.addLabels(Object.assign(Object.assign({}, context.repo), { issue_number: prIssueNumber, labels: [issueTypeLabelNew] }));
+                yield githubRestClient.issues.addLabels(Object.assign(Object.assign({}, context.repo), { issue_number: prNumber, labels: [issueTypeLabelNew] }));
             }
             core.setOutput('issue-key', jiraIssueKey);
             core.setOutput('issue-type', issueType);
             core.setOutput('issue-priority', issuePriority);
             core.setOutput('issue-fix-version', issueFixVersion);
-            // `who-to-greet` input defined in action metadata file
-            // const nameToGreet = core.getInput('who-to-greet');
-            // console.log(`Hello ${nameToGreet}!`);
-            // const time = (new Date()).toTimeString();
-            // core.setOutput("time", time);
-            // // Get the JSON webhook payload for the event that triggered the workflow
-            // const payload = JSON.stringify(github.context.payload, undefined, 2)
-            // console.log(`The event payload: ${payload}`);
         }
         catch (error) {
             core.setFailed(error.message);
