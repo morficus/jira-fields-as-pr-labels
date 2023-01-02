@@ -1,0 +1,35 @@
+name: Test this action
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  do_the_thing:
+    runs-on: ubuntu-latest
+    name: Do the thing
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set PR label
+        uses: ./
+        id: addPrLabels
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
+          jira-username: ${{ secrets.JIRA_USERNAME }}
+          jira-base-url: ${{ secrets.JIRA_BASE_URL }}
+
+      - name: Print the output issue key
+        run: echo "${{ steps.addPrLabels.outputs.issue-key }}"
+
+      - name: Print the output issue type
+        run: echo "${{ steps.addPrLabels.outputs.issue-type }}"
+
+      - name: Print the output issue priority
+        run: echo "${{ steps.addPrLabels.outputs.issue-priority }}"
+
+      - name: Print the output issue fix version
+        run: echo "${{ steps.addPrLabels.outputs.issue-fix-version }}"
+        

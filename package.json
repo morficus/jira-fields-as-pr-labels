@@ -1,19 +1,19 @@
 {
-  "name": "gh-action-jira",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "jira-fields-as-pr-labels",
+  "version": "0.0.1",
+  "description": "Add labels to a GitHub pull request based on certain fields from Jira",
+  "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc"
+    "build": "tsc",
+    "package": "ncc build --source-map --license licenses.txt"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["github", "github actions", "jira", "labels"],
+  "author": "Maurice Williams",
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.10.0",
     "@actions/github": "^5.1.1",
-    "axios": "^1.2.2",
     "jira-client": "^8.2.2",
     "lodash-es": "^4.17.21"
   },

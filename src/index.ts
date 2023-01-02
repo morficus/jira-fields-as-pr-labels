@@ -36,9 +36,13 @@ async function main() {
 
     const title = context.payload.pull_request?.title
     const branchName = context.ref
-    const prIssueNumber = context.payload.pull_request?.number
+    const prNumber = context.payload.pull_request?.number
 
-    if (!prIssueNumber) {
+    core.debug(`PR title: ${title}`)
+    core.debug(`Branch name: ${branchName}`)
+    core.debug(`PR number: ${prNumber}`)
+
+    if (!prNumber) {
       const msg = `No PR number was found in the GitHub context`
       core.setFailed(msg)
       throw new Error(msg)
@@ -47,14 +51,16 @@ async function main() {
     let jiraIssueKey
     const matcher = new RegExp(JIRA_ISSUE_KEY_REGEX_MATCHER)
     if (issueKeyLocation === IssueKeyLocation.BRANCH_NAME) {
-      jiraIssueKey = matcher.exec(title)
-    } else if (issueKeyLocation === IssueKeyLocation.TITLE) {
       jiraIssueKey = matcher.exec(branchName)
+    } else if (issueKeyLocation === IssueKeyLocation.TITLE) {
+      jiraIssueKey = matcher.exec(title)
     } else if (issueKeyLocation === IssueKeyLocation.BOTH) {
       jiraIssueKey = matcher.exec(title) || matcher.exec(branchName)
     }
 
     jiraIssueKey = last(jiraIssueKey)
+    
+    core.debug(`Jira issue key: ${jiraIssueKey}`)
 
     if (!jiraIssueKey) {
       const msg = `No Jira issue key was found in: ${issueKeyLocation}`
@@ -64,40 +70,73 @@ async function main() {
 
     // fetch issue details with only the specified fields
     // the 2nd parameter (`names`) returns a property that has the "display name" of each property
-    const jiraIssueDetails = await jira.findIssue(jiraIssueKey, 'names', 'project,summary,issuetype,priority,fixVersions')
-    console.log(jiraIssueDetails)
-    const issueType = jiraIssueDetails.issuetype?.name
-    const issuePriority = jiraIssueDetails.priority?.name
-    const issueFixVersion = jiraIssueDetails.fixVersions?.name
+    const jiraIssueDetails = await jira.findIssue(jiraIssueKey, 'names', 'issuetype,priority,fixVersions')
+    
+    const issueType = jiraIssueDetails.fields.issuetype?.name
+    const issuePriority = jiraIssueDetails.fields.priority?.name
+    const issueFixVersion = jiraIssueDetails.fields.fixVersions[0]?.name
+
+    const issueTypeLabelNew = `Issue Type: ${issueType}`
+
+    core.debug(`From Jira, issue type: ${issueType}`)
+    core.debug(`From Jira, priority: ${issuePriority}`)
+    core.debug(`From Jira, fix version: ${issueFixVersion}`)
 
     const octokit = github.getOctokit(githubToken)
-    octokit.rest.issues.addLabels({
+    const githubRestClient = octokit.rest
+
+    const issueDetails = await githubRestClient.issues.get({
       ...context.repo,
-      issue_number: prIssueNumber,
-      labels: [
-        {
-          name: 'test 01'
-        },
-        {
-          name: `issue type: ${issueType}`
-        }
-      ]
+      issue_number: prNumber,
     })
+
+    // find any existing "issue type" labels so we can remove them
+    issueDetails.data.labels = issueDetails.data.labels || []
+    
+    // for some reason, the Octokit REST client defines "labels" as either an array of strings OR objects.
+    // doing doing `labels[0]?.name` always resulted in a TS error... so to get around that, I'm redefining the type 🤷🏽‍♂️
+    type ghLabel = {
+      id?: number | undefined;
+      node_id?: string | undefined;
+      url?: string | undefined;
+      name?: string | undefined;
+      description?: string | null | undefined;
+      color?: string | null | undefined;
+      default?: boolean | undefined;
+    }
+    
+    const existingLabels = issueDetails.data.labels as ghLabel[]
+    const issueTypeLabelExisting = existingLabels.find(label => label.name?.startsWith('Issue Type:'))
+
+    core.debug(`Existing labels on PR: ${existingLabels}`)
+
+    const hasExistingLabel = !!(issueTypeLabelExisting && issueTypeLabelExisting.name)
+    const existingLabelMatches = issueTypeLabelExisting?.name === issueTypeLabelNew
+
+    core.debug(`Is there already an "issue type" label present? ${hasExistingLabel}`)
+    core.debug(`Does the existing "issue type" label match the issue type in Jira ? ${existingLabelMatches}`)
+
+    if (hasExistingLabel && !existingLabelMatches) {
+      await githubRestClient.issues.removeLabel({
+        ...context.repo,
+        issue_number: prNumber,
+        name: issueTypeLabelExisting.name || ''
+      })
+    }
+
+    if (!hasExistingLabel || !existingLabelMatches) {
+      await githubRestClient.issues.addLabels({
+        ...context.repo,
+        issue_number: prNumber,
+        labels: [issueTypeLabelNew]
+      })
+    }
 
     core.setOutput('issue-key', jiraIssueKey)
     core.setOutput('issue-type', issueType)
     core.setOutput('issue-priority', issuePriority)
     core.setOutput('issue-fix-version', issueFixVersion)
 
-
-    // `who-to-greet` input defined in action metadata file
-    // const nameToGreet = core.getInput('who-to-greet');
-    // console.log(`Hello ${nameToGreet}!`);
-    // const time = (new Date()).toTimeString();
-    // core.setOutput("time", time);
-    // // Get the JSON webhook payload for the event that triggered the workflow
-    // const payload = JSON.stringify(github.context.payload, undefined, 2)
-    // console.log(`The event payload: ${payload}`);
   } catch (error: any) {
     core.setFailed(error.message);
   }
