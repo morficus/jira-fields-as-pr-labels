@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Set PR label
+      - name: Sync all the things
         uses: ./
         id: addPrLabels
         with:
@@ -20,6 +20,16 @@ jobs:
           jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
           jira-username: ${{ secrets.JIRA_USERNAME }}
           jira-base-url: ${{ secrets.JIRA_BASE_URL }}
+
+      - name: Skip certain things
+        uses: ./
+        id: addPrLabelsWithSkipping
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
+          jira-username: ${{ secrets.JIRA_USERNAME }}
+          jira-base-url: ${{ secrets.JIRA_BASE_URL }}
+          sync-issue-labels: false
 
       - name: Print the output issue key
         run: echo "${{ steps.addPrLabels.outputs.issue-key }}"
