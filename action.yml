@@ -18,6 +18,18 @@ inputs:
     description: 'Where in the PR to look for issue key. Values can be: `branch`, `title` or `both`'
     default: title
     required: false
+  sync-issue-type:
+    description: 'Flag indicating if the "issue type" from Jira should be added as a PR label'
+    default: true
+    required: false
+  sync-issue-priority:
+    description: 'Flag indicating if the "priority" value from Jira should be added as a PR label'
+    default: true
+    required: false
+  sync-issue-labels:
+    description: 'Flag indicating if the "labels" from Jira should be added as a PR label'
+    default: true
+    required: false
 outputs:
   issue-key: 
     description: 'The issue key that was found'

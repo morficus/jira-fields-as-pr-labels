@@ -21,6 +21,9 @@ async function main() {
     const jiraApiKey = core.getInput('jira-api-token', { required: true })
     const jiraBaseUrl = core.getInput('jira-base-url', { required: true })
     const issueKeyLocation = core.getInput('issue-key-location', { required: false }) as IssueKeyLocation
+    const syncIssueType = core.getBooleanInput('sync-issue-type', { required: false })
+    const syncIssuePriority = core.getBooleanInput('sync-issue-priority', { required: false })
+    const syncIssueLabels = core.getBooleanInput('sync-issue-labels', { required: false })
 
     const context = github.context
 
@@ -75,11 +78,13 @@ async function main() {
     
     const issueType = jiraIssueDetails.fields.issuetype?.name
     const issuePriority = jiraIssueDetails.fields.priority?.name
-    const issueFixVersion = jiraIssueDetails.fields.fixVersions[0]?.name
+    const issueLabels = jiraIssueDetails.fields.labels
+    const issueFixVersions = jiraIssueDetails.fields.fixVersions?.map(fixVersion => fixVersion.name)
 
     core.debug(`From Jira, issue type: ${issueType}`)
     core.debug(`From Jira, priority: ${issuePriority}`)
-    core.debug(`From Jira, fix version: ${issueFixVersion}`)
+    core.debug(`From Jira, labels: ${issueLabels}`)
+    core.debug(`From Jira, fix versions: ${issueFixVersions}`)
 
     const octokit = github.getOctokit(githubToken)
 
@@ -90,14 +95,23 @@ async function main() {
       githubContext: context
     }
     
-    await operations.syncIssueType(operationInput)
-    await operations.syncPriority(operationInput)
-    await operations.syncLabels(operationInput)
+    if (syncIssueType) {
+      await operations.syncIssueType(operationInput)
+    }
+
+    if (syncIssuePriority) {
+      await operations.syncPriority(operationInput)
+    }
+    
+    if (syncIssueLabels) {
+      await operations.syncLabels(operationInput)
+    }
 
     core.setOutput('issue-key', jiraIssueKey)
     core.setOutput('issue-type', issueType)
     core.setOutput('issue-priority', issuePriority)
-    core.setOutput('issue-fix-version', issueFixVersion)
+    core.setOutput('issue-labels', issueLabels)
+    core.setOutput('issue-fix-version', issueFixVersions)
 
   } catch (error: any) {
     core.setFailed(error.message);

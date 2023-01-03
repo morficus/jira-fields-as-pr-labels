@@ -64,6 +64,9 @@ function main() {
             const jiraApiKey = core.getInput('jira-api-token', { required: true });
             const jiraBaseUrl = core.getInput('jira-base-url', { required: true });
             const issueKeyLocation = core.getInput('issue-key-location', { required: false });
+            const syncIssueType = core.getBooleanInput('sync-issue-type', { required: false });
+            const syncIssuePriority = core.getBooleanInput('sync-issue-priority', { required: false });
+            const syncIssueLabels = core.getBooleanInput('sync-issue-labels', { required: false });
             const context = github.context;
             const jiraBaseUrlParts = new URL(jiraBaseUrl);
             const jira = new jira_client_1.default({
@@ -108,10 +111,12 @@ function main() {
             const jiraIssueDetails = yield jira.findIssue(jiraIssueKey, 'names', 'issuetype,priority,labels,fixVersions');
             const issueType = (_c = jiraIssueDetails.fields.issuetype) === null || _c === void 0 ? void 0 : _c.name;
             const issuePriority = (_d = jiraIssueDetails.fields.priority) === null || _d === void 0 ? void 0 : _d.name;
-            const issueFixVersion = (_e = jiraIssueDetails.fields.fixVersions[0]) === null || _e === void 0 ? void 0 : _e.name;
+            const issueLabels = jiraIssueDetails.fields.labels;
+            const issueFixVersions = (_e = jiraIssueDetails.fields.fixVersions) === null || _e === void 0 ? void 0 : _e.map(fixVersion => fixVersion.name);
             core.debug(`From Jira, issue type: ${issueType}`);
             core.debug(`From Jira, priority: ${issuePriority}`);
-            core.debug(`From Jira, fix version: ${issueFixVersion}`);
+            core.debug(`From Jira, labels: ${issueLabels}`);
+            core.debug(`From Jira, fix versions: ${issueFixVersions}`);
             const octokit = github.getOctokit(githubToken);
             const operationInput = {
                 jiraIssueDetails,
@@ -119,13 +124,20 @@ function main() {
                 githubClient: octokit,
                 githubContext: context
             };
-            yield operations.syncIssueType(operationInput);
-            yield operations.syncPriority(operationInput);
-            yield operations.syncLabels(operationInput);
+            if (syncIssueType) {
+                yield operations.syncIssueType(operationInput);
+            }
+            if (syncIssuePriority) {
+                yield operations.syncPriority(operationInput);
+            }
+            if (syncIssueLabels) {
+                yield operations.syncLabels(operationInput);
+            }
             core.setOutput('issue-key', jiraIssueKey);
             core.setOutput('issue-type', issueType);
             core.setOutput('issue-priority', issuePriority);
-            core.setOutput('issue-fix-version', issueFixVersion);
+            core.setOutput('issue-labels', issueLabels);
+            core.setOutput('issue-fix-version', issueFixVersions);
         }
         catch (error) {
             core.setFailed(error.message);
