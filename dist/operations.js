@@ -44,6 +44,7 @@ const lodash_es_1 = require("lodash-es");
  */
 function _syncLabel({ prefix, labels, githubPrNumber, githubClient, githubContext }) {
     return __awaiter(this, void 0, void 0, function* () {
+        core.debug(`----- [processing labels of type "${prefix}"] -----`);
         const ghRestApi = githubClient.rest;
         const labelsProposed = labels.map(label => `${prefix}: ${label}`);
         const prDetails = yield ghRestApi.issues.get(Object.assign(Object.assign({}, githubContext.repo), { issue_number: githubPrNumber }));
@@ -54,20 +55,23 @@ function _syncLabel({ prefix, labels, githubPrNumber, githubClient, githubContex
             .map(label => label.name));
         const labelsToRemove = (0, lodash_es_1.difference)(existingLabelsOfType, labelsProposed);
         const labelsToAdd = (0, lodash_es_1.difference)(labelsProposed, existingLabelsOfType);
-        core.debug(`Labels of type "${prefix}" currently on the PR: ${existingLabelsOfType.join(',')}`);
-        core.debug(`Labels of type "${prefix}" that will be removed: ${labelsToRemove.join(',')}`);
-        core.debug(`Labels of type "${prefix}" that will be added: ${labelsToAdd.join(',')}`);
+        core.debug(`Labels of type "${prefix}" currently on the PR: [${existingLabelsOfType.join(',')}]`);
+        core.debug(`Labels of type "${prefix}" that will be removed: [${labelsToRemove.join(',')}]`);
+        core.debug(`Labels of type "${prefix}" that will be added: [${labelsToAdd.join(',')}]`);
         if (labelsToRemove.length) {
+            core.debug(`Attempting to remove labels of type "${prefix}`);
             // I wish the GH API has support to remove multiple labels at once 😢
-            const requests = labels.map(label => {
+            const requests = labelsToRemove.map(label => {
                 return ghRestApi.issues.removeLabel(Object.assign(Object.assign({}, githubContext.repo), { issue_number: githubPrNumber, name: label }));
             });
             // TODO: change this to Promise.allSettled to better support partial failures (and print a warning)
             yield Promise.all(requests);
         }
         if (labelsToAdd.length) {
+            core.debug(`Attempting to add labels of type "${prefix}`);
             yield ghRestApi.issues.addLabels(Object.assign(Object.assign({}, githubContext.repo), { issue_number: githubPrNumber, labels: labelsToAdd }));
         }
+        core.debug(`----- [done with type "${prefix}"] -----`);
         return {
             additions: labelsToAdd,
             removals: labelsToRemove,

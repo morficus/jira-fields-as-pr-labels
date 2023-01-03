@@ -45,6 +45,7 @@ type ghLabel = {
  * @returns Promise<SyncLabelOutput>
  */
 async function _syncLabel({ prefix, labels, githubPrNumber, githubClient, githubContext }: SyncLabelInput): Promise<SyncLabelOutput> {
+    core.debug(`----- [processing labels of type "${prefix}"] -----`)
     const ghRestApi = githubClient.rest
     const labelsProposed = labels.map(label => `${prefix}: ${label}`)
 
@@ -59,18 +60,18 @@ async function _syncLabel({ prefix, labels, githubPrNumber, githubClient, github
     const existingLabelsOfType = compact(existingLabels
         .filter(label => label.name?.toLowerCase().startsWith(prefix.toLowerCase()))
         .map(label => label.name))
-
     
     const labelsToRemove = difference(existingLabelsOfType, labelsProposed)
     const labelsToAdd = difference(labelsProposed, existingLabelsOfType)
 
-    core.debug(`Labels of type "${prefix}" currently on the PR: ${existingLabelsOfType.join(',')}`)
-    core.debug(`Labels of type "${prefix}" that will be removed: ${labelsToRemove.join(',')}`)
-    core.debug(`Labels of type "${prefix}" that will be added: ${labelsToAdd.join(',')}`)
+    core.debug(`Labels of type "${prefix}" currently on the PR: [${existingLabelsOfType.join(',')}]`)
+    core.debug(`Labels of type "${prefix}" that will be removed: [${labelsToRemove.join(',')}]`)
+    core.debug(`Labels of type "${prefix}" that will be added: [${labelsToAdd.join(',')}]`)
 
     if (labelsToRemove.length) {
+        core.debug(`Attempting to remove labels of type "${prefix}`)
         // I wish the GH API has support to remove multiple labels at once 😢
-        const requests = labels.map(label => {
+        const requests = labelsToRemove.map(label => {
             return ghRestApi.issues.removeLabel({
                 ...githubContext.repo,
                 issue_number: githubPrNumber,
@@ -83,12 +84,15 @@ async function _syncLabel({ prefix, labels, githubPrNumber, githubClient, github
     }
 
     if (labelsToAdd.length) {
+        core.debug(`Attempting to add labels of type "${prefix}`)
         await ghRestApi.issues.addLabels({
             ...githubContext.repo,
             issue_number: githubPrNumber,
             labels: labelsToAdd
         })
     }
+
+    core.debug(`----- [done with type "${prefix}"] -----`)
     
     return {
         additions: labelsToAdd,

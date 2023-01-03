@@ -77,8 +77,6 @@ async function main() {
     const issuePriority = jiraIssueDetails.fields.priority?.name
     const issueFixVersion = jiraIssueDetails.fields.fixVersions[0]?.name
 
-    const issueTypeLabelNew = `Issue Type: ${issueType}`
-
     core.debug(`From Jira, issue type: ${issueType}`)
     core.debug(`From Jira, priority: ${issuePriority}`)
     core.debug(`From Jira, fix version: ${issueFixVersion}`)
