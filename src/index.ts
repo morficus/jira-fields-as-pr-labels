@@ -2,6 +2,7 @@ import * as core from '@actions/core'
 import * as  github from '@actions/github'
 import { last } from 'lodash-es'
 import JiraApi from 'jira-client'
+import * as operations from './operations'
 
 enum IssueKeyLocation {
   BRANCH_NAME = 'branch',
@@ -70,7 +71,7 @@ async function main() {
 
     // fetch issue details with only the specified fields
     // the 2nd parameter (`names`) returns a property that has the "display name" of each property
-    const jiraIssueDetails = await jira.findIssue(jiraIssueKey, 'names', 'issuetype,priority,fixVersions')
+    const jiraIssueDetails = await jira.findIssue(jiraIssueKey, 'names', 'issuetype,priority,fixVersions') as JiraIssue
     
     const issueType = jiraIssueDetails.fields.issuetype?.name
     const issuePriority = jiraIssueDetails.fields.priority?.name
@@ -83,54 +84,16 @@ async function main() {
     core.debug(`From Jira, fix version: ${issueFixVersion}`)
 
     const octokit = github.getOctokit(githubToken)
-    const githubRestClient = octokit.rest
 
-    const issueDetails = await githubRestClient.issues.get({
-      ...context.repo,
-      issue_number: prNumber,
-    })
-
-    // find any existing "issue type" labels so we can remove them
-    issueDetails.data.labels = issueDetails.data.labels || []
-    
-    // for some reason, the Octokit REST client defines "labels" as either an array of strings OR objects.
-    // doing doing `labels[0]?.name` always resulted in a TS error... so to get around that, I'm redefining the type 🤷🏽‍♂️
-    type ghLabel = {
-      id?: number | undefined;
-      node_id?: string | undefined;
-      url?: string | undefined;
-      name?: string | undefined;
-      description?: string | null | undefined;
-      color?: string | null | undefined;
-      default?: boolean | undefined;
+    const operationInput = {
+      jiraIssueDetails,
+      githubPrNumber: prNumber,
+      githubClient: octokit,
+      githubContext: context
     }
     
-    const existingLabels = issueDetails.data.labels as ghLabel[]
-    const issueTypeLabelExisting = existingLabels.find(label => label.name?.startsWith('Issue Type:'))
-
-    core.debug(`Existing labels on PR: ${existingLabels}`)
-
-    const hasExistingLabel = !!(issueTypeLabelExisting && issueTypeLabelExisting.name)
-    const existingLabelMatches = issueTypeLabelExisting?.name === issueTypeLabelNew
-
-    core.debug(`Is there already an "issue type" label present? ${hasExistingLabel}`)
-    core.debug(`Does the existing "issue type" label match the issue type in Jira ? ${existingLabelMatches}`)
-
-    if (hasExistingLabel && !existingLabelMatches) {
-      await githubRestClient.issues.removeLabel({
-        ...context.repo,
-        issue_number: prNumber,
-        name: issueTypeLabelExisting.name || ''
-      })
-    }
-
-    if (!hasExistingLabel || !existingLabelMatches) {
-      await githubRestClient.issues.addLabels({
-        ...context.repo,
-        issue_number: prNumber,
-        labels: [issueTypeLabelNew]
-      })
-    }
+    await operations.syncIssueType(operationInput)
+    await operations.syncPriority(operationInput)
 
     core.setOutput('issue-key', jiraIssueKey)
     core.setOutput('issue-type', issueType)
