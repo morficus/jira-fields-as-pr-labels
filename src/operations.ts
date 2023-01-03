@@ -124,7 +124,22 @@ export async function syncIssueType({ jiraIssueDetails, githubPrNumber, githubCl
 
 export async function syncFixVersion(): Promise<void> {}
 
-export async function syncLabels(): Promise<void> {}
+export async function syncLabels({ jiraIssueDetails, githubPrNumber, githubClient, githubContext }: OperationInput): Promise<void> {
+    const prefix = 'Jira Label'
+    const jiraLabels = jiraIssueDetails.fields.labels
+    
+    // if (jiraLabels === undefined) {
+    //     throw new Error('Jira issue did not have a priority')
+    // }
+
+    await _syncLabel({
+        githubClient,
+        githubContext,
+        githubPrNumber,
+        prefix,
+        labels: jiraLabels
+    })
+}
 
 /**
  * Adds a PR label indicating the issue priority from Jira.

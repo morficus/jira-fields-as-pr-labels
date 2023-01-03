@@ -71,7 +71,7 @@ async function main() {
 
     // fetch issue details with only the specified fields
     // the 2nd parameter (`names`) returns a property that has the "display name" of each property
-    const jiraIssueDetails = await jira.findIssue(jiraIssueKey, 'names', 'issuetype,priority,fixVersions') as JiraIssue
+    const jiraIssueDetails = await jira.findIssue(jiraIssueKey, 'names', 'issuetype,priority,labels,fixVersions') as JiraIssue
     
     const issueType = jiraIssueDetails.fields.issuetype?.name
     const issuePriority = jiraIssueDetails.fields.priority?.name
@@ -92,6 +92,7 @@ async function main() {
     
     await operations.syncIssueType(operationInput)
     await operations.syncPriority(operationInput)
+    await operations.syncLabels(operationInput)
 
     core.setOutput('issue-key', jiraIssueKey)
     core.setOutput('issue-type', issueType)

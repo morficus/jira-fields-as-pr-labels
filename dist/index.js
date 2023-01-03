@@ -105,7 +105,7 @@ function main() {
             }
             // fetch issue details with only the specified fields
             // the 2nd parameter (`names`) returns a property that has the "display name" of each property
-            const jiraIssueDetails = yield jira.findIssue(jiraIssueKey, 'names', 'issuetype,priority,fixVersions');
+            const jiraIssueDetails = yield jira.findIssue(jiraIssueKey, 'names', 'issuetype,priority,labels,fixVersions');
             const issueType = (_c = jiraIssueDetails.fields.issuetype) === null || _c === void 0 ? void 0 : _c.name;
             const issuePriority = (_d = jiraIssueDetails.fields.priority) === null || _d === void 0 ? void 0 : _d.name;
             const issueFixVersion = (_e = jiraIssueDetails.fields.fixVersions[0]) === null || _e === void 0 ? void 0 : _e.name;
@@ -121,6 +121,7 @@ function main() {
             };
             yield operations.syncIssueType(operationInput);
             yield operations.syncPriority(operationInput);
+            yield operations.syncLabels(operationInput);
             core.setOutput('issue-key', jiraIssueKey);
             core.setOutput('issue-type', issueType);
             core.setOutput('issue-priority', issuePriority);
@@ -247,8 +248,21 @@ function syncFixVersion() {
     return __awaiter(this, void 0, void 0, function* () { });
 }
 exports.syncFixVersion = syncFixVersion;
-function syncLabels() {
-    return __awaiter(this, void 0, void 0, function* () { });
+function syncLabels({ jiraIssueDetails, githubPrNumber, githubClient, githubContext }) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const prefix = 'Jira Label';
+        const jiraLabels = jiraIssueDetails.fields.labels;
+        // if (jiraLabels === undefined) {
+        //     throw new Error('Jira issue did not have a priority')
+        // }
+        yield _syncLabel({
+            githubClient,
+            githubContext,
+            githubPrNumber,
+            prefix,
+            labels: jiraLabels
+        });
+    });
 }
 exports.syncLabels = syncLabels;
 /**

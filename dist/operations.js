@@ -104,8 +104,21 @@ function syncFixVersion() {
     return __awaiter(this, void 0, void 0, function* () { });
 }
 exports.syncFixVersion = syncFixVersion;
-function syncLabels() {
-    return __awaiter(this, void 0, void 0, function* () { });
+function syncLabels({ jiraIssueDetails, githubPrNumber, githubClient, githubContext }) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const prefix = 'Jira Label';
+        const jiraLabels = jiraIssueDetails.fields.labels;
+        // if (jiraLabels === undefined) {
+        //     throw new Error('Jira issue did not have a priority')
+        // }
+        yield _syncLabel({
+            githubClient,
+            githubContext,
+            githubPrNumber,
+            prefix,
+            labels: jiraLabels
+        });
+    });
 }
 exports.syncLabels = syncLabels;
 /**
