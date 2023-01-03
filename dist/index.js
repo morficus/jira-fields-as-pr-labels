@@ -46,6 +46,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
 const lodash_es_1 = __nccwpck_require__(6187);
 const jira_client_1 = __importDefault(__nccwpck_require__(6411));
+const operations = __importStar(__nccwpck_require__(1721));
 var IssueKeyLocation;
 (function (IssueKeyLocation) {
     IssueKeyLocation["BRANCH_NAME"] = "branch";
@@ -63,6 +64,9 @@ function main() {
             const jiraApiKey = core.getInput('jira-api-token', { required: true });
             const jiraBaseUrl = core.getInput('jira-base-url', { required: true });
             const issueKeyLocation = core.getInput('issue-key-location', { required: false });
+            const syncIssueType = core.getBooleanInput('sync-issue-type', { required: false });
+            const syncIssuePriority = core.getBooleanInput('sync-issue-priority', { required: false });
+            const syncIssueLabels = core.getBooleanInput('sync-issue-labels', { required: false });
             const context = github.context;
             const jiraBaseUrlParts = new URL(jiraBaseUrl);
             const jira = new jira_client_1.default({
@@ -104,36 +108,36 @@ function main() {
             }
             // fetch issue details with only the specified fields
             // the 2nd parameter (`names`) returns a property that has the "display name" of each property
-            const jiraIssueDetails = yield jira.findIssue(jiraIssueKey, 'names', 'issuetype,priority,fixVersions');
+            const jiraIssueDetails = yield jira.findIssue(jiraIssueKey, 'names', 'issuetype,priority,labels,fixVersions');
             const issueType = (_c = jiraIssueDetails.fields.issuetype) === null || _c === void 0 ? void 0 : _c.name;
             const issuePriority = (_d = jiraIssueDetails.fields.priority) === null || _d === void 0 ? void 0 : _d.name;
-            const issueFixVersion = (_e = jiraIssueDetails.fields.fixVersions[0]) === null || _e === void 0 ? void 0 : _e.name;
-            const issueTypeLabelNew = `Issue Type: ${issueType}`;
+            const issueLabels = jiraIssueDetails.fields.labels;
+            const issueFixVersions = (_e = jiraIssueDetails.fields.fixVersions) === null || _e === void 0 ? void 0 : _e.map(fixVersion => fixVersion.name);
             core.debug(`From Jira, issue type: ${issueType}`);
             core.debug(`From Jira, priority: ${issuePriority}`);
-            core.debug(`From Jira, fix version: ${issueFixVersion}`);
+            core.debug(`From Jira, labels: ${issueLabels}`);
+            core.debug(`From Jira, fix versions: ${issueFixVersions}`);
             const octokit = github.getOctokit(githubToken);
-            const githubRestClient = octokit.rest;
-            const issueDetails = yield githubRestClient.issues.get(Object.assign(Object.assign({}, context.repo), { issue_number: prNumber }));
-            // find any existing "issue type" labels so we can remove them
-            issueDetails.data.labels = issueDetails.data.labels || [];
-            const existingLabels = issueDetails.data.labels;
-            const issueTypeLabelExisting = existingLabels.find(label => { var _a; return (_a = label.name) === null || _a === void 0 ? void 0 : _a.startsWith('Issue Type:'); });
-            core.debug(`Existing labels on PR: ${existingLabels}`);
-            const hasExistingLabel = !!(issueTypeLabelExisting && issueTypeLabelExisting.name);
-            const existingLabelMatches = (issueTypeLabelExisting === null || issueTypeLabelExisting === void 0 ? void 0 : issueTypeLabelExisting.name) === issueTypeLabelNew;
-            core.debug(`Is there already an "issue type" label present? ${hasExistingLabel}`);
-            core.debug(`Does the existing "issue type" label match the issue type in Jira ? ${existingLabelMatches}`);
-            if (hasExistingLabel && !existingLabelMatches) {
-                yield githubRestClient.issues.removeLabel(Object.assign(Object.assign({}, context.repo), { issue_number: prNumber, name: issueTypeLabelExisting.name || '' }));
+            const operationInput = {
+                jiraIssueDetails,
+                githubPrNumber: prNumber,
+                githubClient: octokit,
+                githubContext: context
+            };
+            if (syncIssueType) {
+                yield operations.syncIssueType(operationInput);
             }
-            if (!hasExistingLabel || !existingLabelMatches) {
-                yield githubRestClient.issues.addLabels(Object.assign(Object.assign({}, context.repo), { issue_number: prNumber, labels: [issueTypeLabelNew] }));
+            if (syncIssuePriority) {
+                yield operations.syncPriority(operationInput);
+            }
+            if (syncIssueLabels) {
+                yield operations.syncLabels(operationInput);
             }
             core.setOutput('issue-key', jiraIssueKey);
             core.setOutput('issue-type', issueType);
             core.setOutput('issue-priority', issuePriority);
-            core.setOutput('issue-fix-version', issueFixVersion);
+            core.setOutput('issue-labels', issueLabels);
+            core.setOutput('issue-fix-version', issueFixVersions);
         }
         catch (error) {
             core.setFailed(error.message);
@@ -142,6 +146,159 @@ function main() {
 }
 // this is a work-around to allow top-level await
 main();
+
+
+/***/ }),
+
+/***/ 1721:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.syncPriority = exports.syncLabels = exports.syncFixVersion = exports.syncIssueType = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const lodash_es_1 = __nccwpck_require__(6187);
+/**
+ * Takes care of syncing labels of a certain type (aka: prefix).
+ * Will also remove labels of a certain type from the PR that are no longer needed.
+ *
+ * @param SyncLabelInput
+ * @returns Promise<SyncLabelOutput>
+ */
+function _syncLabel({ prefix, labels, githubPrNumber, githubClient, githubContext }) {
+    return __awaiter(this, void 0, void 0, function* () {
+        core.debug(`----- [processing labels of type "${prefix}"] -----`);
+        const ghRestApi = githubClient.rest;
+        const labelsProposed = labels.map(label => `${prefix}: ${label}`);
+        const prDetails = yield ghRestApi.issues.get(Object.assign(Object.assign({}, githubContext.repo), { issue_number: githubPrNumber }));
+        const existingLabels = prDetails.data.labels;
+        // using _.compact to remove any empty values (aka: labels with no `name` property)
+        const existingLabelsOfType = (0, lodash_es_1.compact)(existingLabels
+            .filter(label => { var _a; return (_a = label.name) === null || _a === void 0 ? void 0 : _a.toLowerCase().startsWith(prefix.toLowerCase()); })
+            .map(label => label.name));
+        const labelsToRemove = (0, lodash_es_1.difference)(existingLabelsOfType, labelsProposed);
+        const labelsToAdd = (0, lodash_es_1.difference)(labelsProposed, existingLabelsOfType);
+        core.debug(`Labels of type "${prefix}" currently on the PR: [${existingLabelsOfType.join(',')}]`);
+        core.debug(`Labels of type "${prefix}" that will be removed: [${labelsToRemove.join(',')}]`);
+        core.debug(`Labels of type "${prefix}" that will be added: [${labelsToAdd.join(',')}]`);
+        if (labelsToRemove.length) {
+            core.debug(`Attempting to remove labels of type "${prefix}`);
+            // I wish the GH API has support to remove multiple labels at once 😢
+            const requests = labelsToRemove.map(label => {
+                return ghRestApi.issues.removeLabel(Object.assign(Object.assign({}, githubContext.repo), { issue_number: githubPrNumber, name: label }));
+            });
+            // TODO: change this to Promise.allSettled to better support partial failures (and print a warning)
+            yield Promise.all(requests);
+        }
+        if (labelsToAdd.length) {
+            core.debug(`Attempting to add labels of type "${prefix}`);
+            yield ghRestApi.issues.addLabels(Object.assign(Object.assign({}, githubContext.repo), { issue_number: githubPrNumber, labels: labelsToAdd }));
+        }
+        core.debug(`----- [done with type "${prefix}"] -----`);
+        return {
+            additions: labelsToAdd,
+            removals: labelsToRemove,
+        };
+    });
+}
+/**
+ * Adds a PR label indicating the issue type from Jira.
+ *
+ * @param OperationInput
+ */
+function syncIssueType({ jiraIssueDetails, githubPrNumber, githubClient, githubContext }) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const prefix = 'Issue Type';
+        const issueType = jiraIssueDetails.fields.issuetype.name;
+        if (!issueType) {
+            throw new Error('Jira issue did not have an issue type');
+        }
+        yield _syncLabel({
+            githubClient,
+            githubContext,
+            githubPrNumber,
+            prefix,
+            labels: [issueType]
+        });
+    });
+}
+exports.syncIssueType = syncIssueType;
+function syncFixVersion() {
+    return __awaiter(this, void 0, void 0, function* () { });
+}
+exports.syncFixVersion = syncFixVersion;
+function syncLabels({ jiraIssueDetails, githubPrNumber, githubClient, githubContext }) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const prefix = 'Jira Label';
+        const jiraLabels = jiraIssueDetails.fields.labels;
+        // if (jiraLabels === undefined) {
+        //     throw new Error('Jira issue did not have a priority')
+        // }
+        yield _syncLabel({
+            githubClient,
+            githubContext,
+            githubPrNumber,
+            prefix,
+            labels: jiraLabels
+        });
+    });
+}
+exports.syncLabels = syncLabels;
+/**
+ * Adds a PR label indicating the issue priority from Jira.
+ *
+ * @param OperationInput
+ */
+function syncPriority({ jiraIssueDetails, githubPrNumber, githubClient, githubContext }) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const prefix = 'Priority';
+        const priority = jiraIssueDetails.fields.priority.name;
+        if (!priority) {
+            throw new Error('Jira issue did not have a priority');
+        }
+        yield _syncLabel({
+            githubClient,
+            githubContext,
+            githubPrNumber,
+            prefix,
+            labels: [priority]
+        });
+    });
+}
+exports.syncPriority = syncPriority;
 
 
 /***/ }),
