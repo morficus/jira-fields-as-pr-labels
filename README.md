@@ -1,12 +1,13 @@
 # Jira Fields as PR Labels
 
-This action adds a few fields from Jira as a label on the pull request. Specifically, it will sync the following from Jira:
-- Issue Type
+This action adds a few fields from Jira as a label on a pull request. It has the ability to sync all of the following fields:
+- Issue type
 - Priority
+- Fix Versions
 - Labels
 
 Each PR label will have a specific prefix to clearly indicate what Jira field it represents.  
-By default all of the items mentioned above are synced, but you can turn off certain ones.
+By default none of the fields are synced as labels, so you must specify at least one in order for this to have any effect.
 
 This action will cause the job to fail if a Jira issue key is not found as part of the pull request or if the issue key does not exist in Jira. To prevent this from failing the workflow, you can use the [`continue-on-error`](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepscontinue-on-error) property offered by GitHub.
 ## Usage
@@ -24,15 +25,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - uses: morficus/jira-issue-type-label
+      - uses: morficus/jira-fields-as-pr-labels@v1.0.0
         with:
+          jira-base-url: ${{ vars.JIRA_BASE_URL }}
+          jira-username: ${{ vars.JIRA_USERNAME }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
-          jira-username: ${{ secrets.JIRA_USERNAME }}
-          jira-base-url: ${{ secrets.JIRA_BASE_URL }}
+          sync-issue-type: true
 ```
 
-By default, all fields specified above are synced, but you can also choose to not sync/skip certain ones.
+By default, all no fields a synced, which means you must choose which fields to sync.
 ```yaml
 name: My Pull Request Workflow
 
@@ -45,13 +47,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - uses: morficus/jira-issue-type-label
+      - uses: morficus/jira-fields-as-pr-labels@v1.0.0
         with:
+          jira-base-url: ${{ vars.JIRA_BASE_URL }}
+          jira-username: ${{ vars.JIRA_USERNAME }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
-          jira-username: ${{ secrets.JIRA_USERNAME }}
-          jira-base-url: ${{ secrets.JIRA_BASE_URL }}
-          sync-issue-labels: false
+          sync-issue-type: true
+          sync-issue-labels: true
+```
+
+If for some reason you do not want a fancy with basic ticket info to appear at the top of the PR description, you can turn that off
+![Jira info table](./jira-info-table.png)
+```yaml
+name: My Pull Request Workflow
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  some_job_name:
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: morficus/jira-fields-as-pr-labels@v1.0.0
+        with:
+          jira-base-url: ${{ vars.JIRA_BASE_URL }}
+          jira-username: ${{ vars.JIRA_USERNAME }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
+          inject-jira-info-table: false
+          sync-issue-type: true
+          sync-issue-labels: true
 ```
 
 As a convenience, this action exposes a few properties on the Jira issue as outputs.  
@@ -73,8 +101,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
-          jira-username: ${{ secrets.JIRA_USERNAME }}
-          jira-base-url: ${{ secrets.JIRA_BASE_URL }}
+          jira-username: ${{ vars.JIRA_USERNAME }}
+          jira-base-url: ${{ vars.JIRA_BASE_URL }}
+          sync-issue-type: true
+          sync-issue-labels: true
 
       - name: Print the issue key
         run: echo "${{ steps.addLabel.outputs.issue-key }}"
@@ -89,9 +119,11 @@ jobs:
 | `jira-username` | Username that can use the Jira API token. Must have read access to your Jira projects & issues. For details, see Atlassian's official documentation: https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/       | true | undefined
 | `jira-base-url` | Your Jira subdomain. i.e.: https://your-domain.atlassian.net       | true | undefined
 | `issue-key-location` | Where in the PR to look for issue key. Values can be: `branch`, `title` or `both`       | false | `title`
-| `sync-issue-type` | Flag indicating if the "issue type" from Jira should be added as a PR label | false | `true`
-| `sync-issue-priority` | Flag indicating if the "priority" value from Jira should be added as a PR label | false | `true`
-| `sync-issue-labels` | Flag indicating if the "labels" from Jira should be added as a PR label | false | `true`
+| `inject-jira-info-table` | Flag indicating if the table with the basic ticket information should be added to the top of the PR description       | false | `true`
+| `sync-issue-type` | Flag indicating if the "issue type" from Jira should be added as a PR label | false | `false`
+| `sync-issue-priority` | Flag indicating if the "priority" value from Jira should be added as a PR label | false | `false`
+| `sync-issue-labels` | Flag indicating if the "labels" from Jira should be added as a PR label | false | `false`
+| `sync-issue-fix-versions` | Flag indicating if the "fix versions" from Jira should be added as a PR label | false | `false`
 
 ## Output Options
 
@@ -101,7 +133,7 @@ jobs:
 | `issue-type` | The Jira issue type for the corresponding Jira issue 
 | `issue-priority` | The priority set in Jira for the corresponding Jira issue
 | `issue-labels` | The labels set in Jira for the corresponding Jira issue
-| `issue-fix-version` | The fix version on the corresponding Jira issue
+| `issue-fix-versions` | The fix versions on the corresponding Jira issue
 
 
 ## Frequently Asked Questions
@@ -139,6 +171,8 @@ Here are a few things I want to add to this project over time
 
 - [x] Option to sync labels from Jira to PR labels
 - [x] Option to sync the issue priority from Jira to PR labels
+- [x] Option to sync "fix versions" from Jira to PR labels
+- [ ] Option to sync "sprint" from Jira to PR a label
 - [ ] Option to add the Jira "fix version" as a "[Milestone](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/about-milestones)" on the PR
 - [ ] Option to add the Jira "sprint" as a "[Milestone](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/about-milestones)" on the PR
 - [ ] Ability to manage labels via a configuration file (this might end up being a different action)
