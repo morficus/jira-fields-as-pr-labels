@@ -17,13 +17,16 @@ async function main() {
   try {
 
     const githubToken = core.getInput('github-token', { required: true })
-    const jiraUsername = core.getInput('jira-username', { required: true })
-    const jiraApiKey = core.getInput('jira-api-token', { required: true })
-    const jiraBaseUrl = core.getInput('jira-base-url', { required: true })
-    const issueKeyLocation = core.getInput('issue-key-location', { required: false }) as IssueKeyLocation
+    const jiraUsername = core.getInput('jira-username', { required: true, trimWhitespace: true })
+    const jiraApiKey = core.getInput('jira-api-token', { required: true, trimWhitespace: true })
+    const jiraBaseUrl = core.getInput('jira-base-url', { required: true, trimWhitespace: true })
+    const issueKeyLocation = core.getInput('issue-key-location', { required: false, trimWhitespace: true }) as IssueKeyLocation
+    const injectJiraIfoTable = core.getBooleanInput('inject-jira-info-table', { required: false })
     const syncIssueType = core.getBooleanInput('sync-issue-type', { required: false })
     const syncIssuePriority = core.getBooleanInput('sync-issue-priority', { required: false })
     const syncIssueLabels = core.getBooleanInput('sync-issue-labels', { required: false })
+    const syncFixVersions = core.getBooleanInput('sync-issue-fix-versions', { required: false })
+    
 
     const context = github.context
 
@@ -74,7 +77,7 @@ async function main() {
 
     // fetch issue details with only the specified fields
     // the 2nd parameter (`names`) returns a property that has the "display name" of each property
-    const jiraIssueDetails = await jira.findIssue(jiraIssueKey, 'names', 'issuetype,priority,labels,fixVersions') as JiraIssue
+    const jiraIssueDetails = await jira.findIssue(jiraIssueKey, 'names', 'summary,issuetype,priority,labels,fixVersions') as JiraIssue
     
     const issueType = jiraIssueDetails.fields.issuetype?.name
     const issuePriority = jiraIssueDetails.fields.priority?.name
@@ -94,6 +97,10 @@ async function main() {
       githubClient: octokit,
       githubContext: context
     }
+
+    if (injectJiraIfoTable) {
+      await operations.addJiraInfoToPrDescription({ jiraBaseUrl, ...operationInput })
+    }
     
     if (syncIssueType) {
       await operations.syncIssueType(operationInput)
@@ -107,11 +114,15 @@ async function main() {
       await operations.syncLabels(operationInput)
     }
 
+    if (syncFixVersions) {
+      await operations.syncFixVersionAsLabel(operationInput)
+    }
+
     core.setOutput('issue-key', jiraIssueKey)
     core.setOutput('issue-type', issueType)
     core.setOutput('issue-priority', issuePriority)
     core.setOutput('issue-labels', issueLabels)
-    core.setOutput('issue-fix-version', issueFixVersions)
+    core.setOutput('issue-fix-versions', issueFixVersions)
 
   } catch (error: any) {
     core.setFailed(error.message);

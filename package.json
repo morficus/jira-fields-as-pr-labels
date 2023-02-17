@@ -1,6 +1,6 @@
 {
   "name": "jira-fields-as-pr-labels",
-  "version": "0.0.1",
+  "version": "0.9.0",
   "description": "Add labels to a GitHub pull request based on certain fields from Jira",
   "main": "dist/index.js",
   "scripts": {

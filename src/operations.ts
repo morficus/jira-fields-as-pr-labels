@@ -6,6 +6,7 @@ type GithubContext = typeof github.context
 type GithubClient = ReturnType<typeof github.getOctokit>
 
 type OperationInput = {
+    jiraBaseUrl?: string
     jiraIssueDetails: JiraIssue
     githubPrNumber: number
     githubClient: GithubClient
@@ -36,6 +37,10 @@ type ghLabel = {
     color?: string | null | undefined
     default?: boolean | undefined
 }
+
+const MARKER_WARNING = `<!-- ⚠️ please DO NOT remove this marker nor any of the ones below it, they needed to replace info when ticket title is updated  -->`
+const MARKER_START = `<!-- jira-field-sync -- START -->`
+const MARKER_END = `<!-- jira-field-sync -- END -->`
 
 /**
  * Takes care of syncing labels of a certain type (aka: prefix).
@@ -79,8 +84,13 @@ async function _syncLabel({ prefix, labels, githubPrNumber, githubClient, github
             })
         })
 
-        // TODO: change this to Promise.allSettled to better support partial failures (and print a warning)
-        await Promise.all(requests)
+        const results = await Promise.allSettled(requests)
+        const failures = results.filter(res => res.status === 'rejected')
+        if (failures.length) {
+            core.warning(`At least one request when trying to remove existing Github labels`)
+            core.warning(JSON.stringify(failures, null, 2))
+            
+        }
     }
 
     if (labelsToAdd.length) {
@@ -98,6 +108,20 @@ async function _syncLabel({ prefix, labels, githubPrNumber, githubClient, github
         additions: labelsToAdd,
         removals: labelsToRemove,
     }
+}
+
+async function _getCleanPrDescription({ githubPrNumber, githubClient, githubContext }: OperationInput): Promise<string> {
+    const rg = new RegExp(`${MARKER_START}([\\s\\S]+)${MARKER_END}`, 'igm');
+
+    const prDetails = await githubClient.rest.issues.get({
+        ...githubContext.repo,
+        issue_number: githubPrNumber,
+    })
+
+    const currentBody = prDetails.data.body
+    const cleanBody = (currentBody ?? '').replace(rg, '');
+
+    return cleanBody
 }
 
 /**
@@ -122,15 +146,14 @@ export async function syncIssueType({ jiraIssueDetails, githubPrNumber, githubCl
     })
 }
 
-export async function syncFixVersion(): Promise<void> {}
-
+/**
+ * Adds a PR label for each label present in Jira
+ * 
+ * @param OperationInput 
+ */
 export async function syncLabels({ jiraIssueDetails, githubPrNumber, githubClient, githubContext }: OperationInput): Promise<void> {
     const prefix = 'Jira Label'
-    const jiraLabels = jiraIssueDetails.fields.labels
-    
-    // if (jiraLabels === undefined) {
-    //     throw new Error('Jira issue did not have a priority')
-    // }
+    const jiraLabels = jiraIssueDetails.fields.labels || []
 
     await _syncLabel({
         githubClient,
@@ -160,5 +183,86 @@ export async function syncPriority({ jiraIssueDetails, githubPrNumber, githubCli
         githubPrNumber,
         prefix,
         labels: [priority]
+    })
+}
+
+/**
+ * Adds a PR label indicating what "fix version" this PR is in. It could add multiple labels if there is more than one fix version in Jira
+ * 
+ * @param OperationInput 
+ */
+export async function syncFixVersionAsLabel({ jiraIssueDetails, githubPrNumber, githubClient, githubContext }: OperationInput): Promise<void> {
+    const fixVersions = jiraIssueDetails.fields.fixVersions || []
+    const prefix = 'Release'
+
+    await _syncLabel({
+        githubClient,
+        githubContext,
+        githubPrNumber,
+        prefix,
+        labels: fixVersions.map(fv => fv.name) || []
+    })
+}
+
+export async function addJiraInfoToPrDescription({ jiraBaseUrl, jiraIssueDetails, githubPrNumber, githubClient, githubContext }: OperationInput): Promise<void> {
+
+    const jiraInfoTable = `<table align="center">
+        <tr>
+            <th colspan="2">
+                Jira Information
+            </th>
+        <tr>
+        <tr>
+            <th>Title</th>
+            <td>${jiraIssueDetails.fields.summary}</td>
+        </tr>
+        <tr>
+            <th>Link</th>
+            <td>
+                <a href="${jiraBaseUrl}/browse/${jiraIssueDetails.key}" target="_blank">
+                    ${jiraIssueDetails.key}
+                </a>
+            </td>
+        </tr>
+        <tr>
+            <th>Type</th>
+            <td>
+                <img src="${jiraIssueDetails.fields.issuetype.iconUrl}" alt="${jiraIssueDetails.fields.issuetype.description}" />
+                ${jiraIssueDetails.fields.issuetype.name}
+            </td>
+        </tr>
+        <tr>
+            <th>Priority</th>
+            <td>
+                <img src="${jiraIssueDetails.fields.priority.iconUrl}" height="16px" alt="${jiraIssueDetails.fields.priority.name}" />
+                ${jiraIssueDetails.fields.priority.name}
+            </td>
+        </tr>
+    </table>
+    <hr />
+    `
+
+    const prDetails = await githubClient.rest.issues.get({
+        ...githubContext.repo,
+        issue_number: githubPrNumber,
+    })
+
+    const cleanBody = await _getCleanPrDescription({ jiraIssueDetails, githubPrNumber, githubClient, githubContext })
+
+
+    let newBody = MARKER_START
+    newBody += `\n${MARKER_WARNING}`
+    newBody += `\n${jiraInfoTable}`
+    newBody += `\n${MARKER_WARNING}`
+    newBody += `\n${MARKER_END}`
+    newBody += `\n${cleanBody}`
+
+    core.debug("CLEAN BODY")
+    core.debug(cleanBody)
+
+    const prDetailsUpdated = await githubClient.rest.issues.update({
+        ...githubContext.repo,
+        issue_number: githubPrNumber,
+        body: newBody
     })
 }

@@ -18,17 +18,25 @@ inputs:
     description: 'Where in the PR to look for issue key. Values can be: `branch`, `title` or `both`'
     default: title
     required: false
+  inject-jira-info-table:
+    description: 'Flag indicating if the table with the basic ticket information should be added to the top of the PR description'
+    default: true
+    required: false
   sync-issue-type:
     description: 'Flag indicating if the "issue type" from Jira should be added as a PR label'
-    default: true
+    default: false
     required: false
   sync-issue-priority:
     description: 'Flag indicating if the "priority" value from Jira should be added as a PR label'
-    default: true
+    default: false
     required: false
   sync-issue-labels:
     description: 'Flag indicating if the "labels" from Jira should be added as a PR label'
-    default: true
+    default: false
+    required: false
+  sync-issue-fix-versions:
+    description: 'Flag indicating if the "fix versions" from Jira should be added as a PR label'
+    default: false
     required: false
 outputs:
   issue-key: 
@@ -37,8 +45,10 @@ outputs:
     description: 'The Jira issue type for the corresponding Jira issue'
   issue-priority: 
     description: 'The priority set in Jira for the corresponding Jira issue'
-  issue-fix-version: 
-    description: 'The fix version on the corresponding Jira issue'
+  issue-labels:
+    description: 'The labels set in Jira for the corresponding Jira issue'
+  issue-fix-versions: 
+    description: 'The fix versions on the corresponding Jira issue'
 runs:
   using: 'node16'
   main: 'dist/index.js'
